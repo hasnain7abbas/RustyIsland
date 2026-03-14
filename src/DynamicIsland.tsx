@@ -8,7 +8,6 @@ import {
     faTimes,
     faGripVertical,
     faDesktop,
-    faChartBar,
     faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import './DynamicIsland.css';
@@ -22,6 +21,7 @@ interface SystemInfo {
 }
 
 interface ProcessInfo {
+    pid: number;
     name: string;
     cpu_usage: number;
     memory: number;
@@ -32,10 +32,14 @@ type IslandMode = 'compact' | 'expanded' | 'activity';
 const DynamicIsland: React.FC = () => {
     const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
     const [islandMode, setIslandMode] = useState<IslandMode>('compact');
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [_isExpanded, setIsExpanded] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [hasDragged, setHasDragged] = useState(false);
+    const [widgetOpacity, setWidgetOpacity] = useState(() => {
+        const saved = localStorage.getItem('widgetOpacity');
+        return saved ? parseFloat(saved) : 1.0;
+    });
 
     useEffect(() => {
         const fetchSystemInfo = async () => {
@@ -47,27 +51,14 @@ const DynamicIsland: React.FC = () => {
             }
         };
 
-        const ensureOnTop = async () => {
-            try {
-                await invoke('ensure_always_on_top');
-            } catch (error) {
-                console.error('Failed to ensure always on top:', error);
-            }
-        };
-
         // Initial fetch
         fetchSystemInfo();
-        ensureOnTop();
 
         // Update system info every 2 seconds
         const interval = setInterval(fetchSystemInfo, 2000);
 
-        // Ensure always on top every 5 seconds
-        const onTopInterval = setInterval(ensureOnTop, 5000);
-
         return () => {
             clearInterval(interval);
-            clearInterval(onTopInterval);
         };
     }, []);
 
@@ -106,8 +97,8 @@ const DynamicIsland: React.FC = () => {
     };
 
     const handleMouseDown = async (e: React.MouseEvent) => {
-        // Don't start drag on close button
-        if ((e.target as HTMLElement).closest('.close-btn')) {
+        // Don't start drag on close button or interactive elements
+        if ((e.target as HTMLElement).closest('.close-btn, .process-kill-btn, .opacity-slider')) {
             return;
         }
 
@@ -150,6 +141,28 @@ const DynamicIsland: React.FC = () => {
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = parseFloat(e.target.value);
+        setWidgetOpacity(value);
+        localStorage.setItem('widgetOpacity', value.toString());
+    };
+
+    const handleKillProcess = async (pid: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await invoke('kill_process', { pid });
+            // Collapse back to compact mode
+            setIslandMode('compact');
+            setIsExpanded(false);
+            await invoke('update_window_size', { width: 320, height: 40 });
+            // Refresh process list
+            const info = await invoke<SystemInfo>('get_system_info');
+            setSystemInfo(info);
+        } catch (error) {
+            console.error('Failed to kill process:', error);
+        }
     };
 
     const formatBytes = (bytes: number): string => {
@@ -248,7 +261,6 @@ const DynamicIsland: React.FC = () => {
             {systemInfo?.active_processes && systemInfo.active_processes.length > 0 && (
                 <div className="processes">
                     <div className="processes-header">
-                        {/* <FontAwesomeIcon icon={faChartBar} className="processes-icon" /> */}
                         <h4 className="processes-title">Active Processes</h4>
                     </div>
                     <div className="process-list">
@@ -261,13 +273,34 @@ const DynamicIsland: React.FC = () => {
                                 <div className="process-stats">
                                     <span className="process-cpu">{process.cpu_usage.toFixed(1)}%</span>
                                     <span className="process-memory">{formatBytes(process.memory)}</span>
-                                    <button className="process-close-btn">x</button>
+                                    <button
+                                        className="process-kill-btn"
+                                        onClick={(e) => handleKillProcess(process.pid, e)}
+                                        title="Kill process"
+                                    >
+                                        <FontAwesomeIcon icon={faTimes} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
+
+            <div className="opacity-slider">
+                <label className="opacity-label">Opacity</label>
+                <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={widgetOpacity}
+                    onChange={handleOpacityChange}
+                    onClick={(e) => e.stopPropagation()}
+                    className="opacity-range"
+                />
+                <span className="opacity-value">{Math.round(widgetOpacity * 100)}%</span>
+            </div>
         </div>
     );
 
@@ -285,6 +318,7 @@ const DynamicIsland: React.FC = () => {
     return (
         <div
             className={`dynamic-island ${islandMode} ${isHovered ? 'hovered' : ''} ${isDragging ? 'dragging' : ''}`}
+            style={{ opacity: widgetOpacity }}
             onClick={handleClick}
             onMouseDown={handleMouseDown}
             onMouseEnter={() => setIsHovered(true)}

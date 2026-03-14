@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.rustyisland.app",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -21,7 +21,8 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "transparent": true,
-        "center": false
+        "center": false,
+        "shadow": false
       }
     ],
     "security": {

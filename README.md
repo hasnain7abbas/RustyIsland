@@ -1,115 +1,106 @@
-# RustyIsland - Rust-Based Dynamic Island
+# RustyIsland
 
-A macOS Dynamic Island-inspired system monitor built with Rust (Tauri) and React. This application creates a floating, always-on-top widget that displays real-time system information in an elegant, iPhone 14 Pro-inspired interface.
+A Dynamic Island-inspired desktop widget for Windows, built with Tauri v2 and React. It floats at the top of your screen showing real-time system stats — and lets you kill runaway processes without ever opening Task Manager.
+
+![Tauri](https://img.shields.io/badge/Tauri-v2-blue) ![React](https://img.shields.io/badge/React-18-61dafb) ![Rust](https://img.shields.io/badge/Rust-stable-orange)
 
 ## Features
 
-🔋 **System Monitoring**
-- Real-time CPU usage monitoring
-- Memory usage tracking with visual indicators
-- Active process monitoring (top CPU consumers)
+### Process Killer
+
+Kill any process directly from the widget. The expanded view shows the top CPU-consuming processes, each with a kill button. Click it, and the process is terminated immediately via the Rust backend using the `sysinfo` crate. The UI refreshes automatically after a kill.
+
+### Transparency Slider
+
+Customize how transparent the widget is. A range slider in the expanded view lets you set opacity from 10% to 100%. Your preference is saved to `localStorage` and persists across restarts.
+
+### System Monitoring
+
+- Real-time CPU and memory usage with animated progress bars
+- Top active processes ranked by CPU consumption
 - Live clock display
 
-🎨 **Dynamic Interface**
-- **Compact Mode**: Minimal pill-shaped display showing time and basic system stats
-- **Expanded Mode**: Detailed view with CPU/memory bars and process list
-- Smooth animations and transitions
+### Dynamic Interface
+
+- **Compact mode** — minimal pill showing time, CPU, and memory at a glance
+- **Expanded mode** — full stats, process list with kill buttons, and opacity slider
 - Glass morphism design with backdrop blur
-- Light/dark mode support
+- Drag the widget anywhere on screen
 
-🖥️ **System Integration**
-- Always stays on top of other windows
-- Transparent background for seamless desktop integration
-- Positioned at the top center of the screen (like iPhone Dynamic Island)
-- Click to expand/collapse interface
-- Hover effects for interactive feedback
+### Desktop Integration
 
-## Technology Stack
+- Always-on-top, borderless, and transparent
+- Positioned at top-center on launch (like iPhone's Dynamic Island)
+- Skips the taskbar — stays out of the way
+- Click to expand/collapse
 
-- **Backend**: Rust with Tauri framework
-- **Frontend**: React with TypeScript
-- **Styling**: CSS with modern effects (backdrop-filter, glass morphism)
-- **System Info**: `sysinfo` crate for cross-platform system monitoring
-- **Build Tool**: Bun for fast JavaScript bundling
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Rust + Tauri v2 |
+| Frontend | React 18 + TypeScript |
+| Styling | CSS with glass morphism and backdrop-filter |
+| System Info | `sysinfo` crate |
+| Build | Vite + npm |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Rust (latest stable version)
-- Bun or Node.js
-- Operating System: Linux, macOS, or Windows
+- Rust (stable)
+- Node.js 18+
+- Windows 10/11
 
-### Installation
+### Install and Run
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/iamdhakrey/rustyisland.git
-   cd rustyisland
-   ```
+```bash
+git clone https://github.com/iamdhakrey/rustyisland.git
+cd rustyisland
+npm install
+npm run tauri dev
+```
 
-2. Install dependencies:
-   ```bash
-   bun install
-   ```
+### Build for Production
 
-3. Run in development mode:
-   ```bash
-   bun run tauri dev
-   ```
+```bash
+npm run tauri build
+```
 
-4. Build for production:
-   ```bash
-   bun run tauri build
-   ```
-
-## Usage
-
-1. **Launch the application** - The dynamic island will appear at the top center of your screen
-2. **Compact Mode** - View time and basic system stats at a glance
-3. **Click to Expand** - Get detailed system information including:
-   - CPU usage with animated progress bar
-   - Memory usage visualization
-   - Top active processes by CPU usage
-4. **Click again or press the X** to return to compact mode
+Installers (`.msi` and `.exe`) are output to `src-tauri/target/release/bundle/`.
 
 ## Project Structure
 
 ```
 rustyisland/
 ├── src/                    # React frontend
-│   ├── DynamicIsland.tsx   # Main dynamic island component
-│   ├── DynamicIsland.css   # Styling for the island
-│   ├── App.tsx             # Root application component
-│   └── App.css             # Global application styles
+│   ├── DynamicIsland.tsx   # Main widget (process killer, opacity slider, stats)
+│   ├── DynamicIsland.css   # Widget styling
+│   ├── App.tsx             # Root component
+│   └── App.css             # Global styles
 ├── src-tauri/              # Rust backend
-│   ├── src/
-│   │   └── lib.rs          # Main Tauri application logic
+│   ├── src/lib.rs          # Tauri commands (get_system_info, kill_process, etc.)
 │   ├── Cargo.toml          # Rust dependencies
 │   └── tauri.conf.json     # Tauri configuration
-└── package.json            # JavaScript dependencies
+├── .github/workflows/      # CI/CD pipelines
+│   ├── ci.yml              # Lint + type check on every push/PR
+│   └── release.yml         # Auto-version bump + build + GitHub Release
+└── package.json
 ```
 
-## Platform Support
+## CI/CD
 
-- **Linux**: Full support with X11/Wayland
-- **macOS**: Full support (similar to native Dynamic Island)
-- **Windows**: Full support
+Automated via GitHub Actions:
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- **CI** (`ci.yml`) — runs TypeScript and Rust checks on every push and PR to `main`
+- **Release** (`release.yml`) — auto-bumps the patch version, builds Windows installers, and publishes a GitHub Release on every push to `main`
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+MIT
 
 ## Acknowledgments
 
-- Inspired by Apple's Dynamic Island on iPhone 14 Pro
-- Built with the amazing Tauri framework
-- Uses the sysinfo crate for cross-platform system monitoring
+- Inspired by Apple's Dynamic Island
+- Built with [Tauri](https://tauri.app)
+- System monitoring powered by the [sysinfo](https://crates.io/crates/sysinfo) crate

@@ -10,7 +10,7 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
     position: relative;
 }
 
@@ -33,7 +33,7 @@
 
 .dynamic-island.hovered {
     transform: scale(1.02);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: none;
 }
 
 .dynamic-island.dragging {
@@ -284,7 +284,7 @@
 
 .process-item {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto;
     gap: 8px;
     align-items: center;
     padding: 6px 8px;
@@ -314,6 +314,74 @@
     font-variant-numeric: tabular-nums;
     min-width: 50px;
     text-align: right;
+}
+
+/* Opacity Slider */
+.opacity-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.opacity-label {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.8;
+    min-width: 48px;
+}
+
+.opacity-range {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.opacity-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #64B5F6;
+    cursor: pointer;
+}
+
+.opacity-value {
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 32px;
+    text-align: right;
+}
+
+/* Process Kill Button */
+.process-kill-btn {
+    background: rgba(255, 59, 48, 0.2);
+    border: none;
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    color: #ff3b30;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: background-color 0.2s ease;
+    padding: 0;
+}
+
+.process-kill-btn:hover {
+    background: rgba(255, 59, 48, 0.5);
 }
 
 /* Dark mode adjustments */

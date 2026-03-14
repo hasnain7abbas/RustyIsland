@@ -14,6 +14,7 @@ pub struct SystemInfo {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProcessInfo {
+    pid: u32,
     name: String,
     cpu_usage: f32,
     memory: u64,
@@ -65,7 +66,8 @@ async fn get_system_info() -> Result<SystemInfo, String> {
         .iter()
         .take(5)
         .filter(|(_, process)| process.cpu_usage() > 0.1)
-        .map(|(_, process)| ProcessInfo {
+        .map(|(pid, process)| ProcessInfo {
+            pid: pid.as_u32(),
             name: process.name().to_string(),
             cpu_usage: process.cpu_usage(),
             memory: process.memory(),
@@ -84,10 +86,7 @@ async fn get_system_info() -> Result<SystemInfo, String> {
 #[tauri::command]
 async fn set_island_mode(mode: String, content_type: String) -> Result<(), String> {
     // This would typically update some global state or configuration
-    println!(
-        "Setting island mode to: {} with content: {}",
-        mode, content_type
-    );
+    let _ = (&mode, &content_type);
     Ok(())
 }
 
@@ -103,18 +102,9 @@ async fn update_window_size(
         return Err(format!("Invalid window dimensions: {}x{}", width, height));
     }
 
-    println!("Setting window size to: {}x{}", width, height);
-
-    match window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height })) {
-        Ok(_) => {
-            println!("Successfully set window size to: {}x{}", width, height);
-            Ok(())
-        }
-        Err(e) => {
-            eprintln!("Failed to set window size: {}", e);
-            Err(e.to_string())
-        }
-    }
+    window
+        .set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }))
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -127,15 +117,12 @@ async fn move_window(x: f64, y: f64, window: tauri::WebviewWindow) -> Result<(),
 
 #[tauri::command]
 async fn start_drag(window: tauri::WebviewWindow) -> Result<(), String> {
-    println!("Starting window drag");
     window.start_dragging().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn ensure_always_on_top(window: tauri::WebviewWindow) -> Result<(), String> {
-    println!("Ensuring window stays always on top");
     window.set_always_on_top(true).map_err(|e| e.to_string())?;
-    window.set_focus().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -145,8 +132,24 @@ async fn toggle_island_expansion() -> Result<bool, String> {
     *state = !*state;
     let new_state = *state;
 
-    println!("Toggled island expansion to: {}", new_state);
     Ok(new_state)
+}
+
+#[tauri::command]
+async fn kill_process(pid: u32) -> Result<(), String> {
+    let mut system = SYSTEM_MONITOR.lock().map_err(|e| e.to_string())?;
+    system.refresh_all();
+
+    let sysinfo_pid = sysinfo::Pid::from(pid as usize);
+    if let Some(process) = system.process(sysinfo_pid) {
+        if process.kill() {
+            Ok(())
+        } else {
+            Err(format!("Failed to kill process {}", pid))
+        }
+    } else {
+        Err(format!("Process {} not found", pid))
+    }
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -172,26 +175,17 @@ pub fn run() {
             window.set_resizable(true)?;
             window.set_skip_taskbar(true)?; // Ensure it doesn't appear in taskbar
 
-            // Additional always-on-top enforcement for Linux/Wayland
-            window.set_focus()?; // Give it focus initially
-
-            // Try to set always on top again after a short delay (for Wayland)
+            // Re-enforce always-on-top after a short delay (for Wayland)
             let window_clone = window.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(500));
                 let _ = window_clone.set_always_on_top(true);
-                let _ = window_clone.set_focus();
             });
 
             // Dynamic Island positioning (top center of screen)
             let monitor = window.current_monitor()?.unwrap();
             let monitor_size = monitor.size();
             let scale_factor = monitor.scale_factor();
-
-            println!(
-                "Monitor size: {}x{}, scale factor: {}",
-                monitor_size.width, monitor_size.height, scale_factor
-            );
 
             // Position the window at the top center, aligned with GNOME top bar
             let window_width = 320.0;
@@ -205,9 +199,6 @@ pub fn run() {
             // The GNOME top bar typically occupies the top ~32-36px of the screen
             let y = 0.0; // Align with very top of screen where GNOME top bar is
 
-            println!("Calculated position: x={}, y={}", x, y);
-            println!("Window dimensions: {}x{}", window_width, window_height);
-
             // Validate dimensions before setting
             if window_width <= 0.0 || window_height <= 0.0 {
                 eprintln!(
@@ -218,30 +209,13 @@ pub fn run() {
             }
 
             // Set size first
-            match window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+            window.set_size(tauri::Size::Logical(tauri::LogicalSize {
                 width: window_width,
                 height: window_height,
-            })) {
-                Ok(_) => println!(
-                    "Successfully set window size in setup: {}x{}",
-                    window_width, window_height
-                ),
-                Err(e) => {
-                    eprintln!("Failed to set window size in setup: {}", e);
-                    return Err(e.into());
-                }
-            }
+            }))?;
 
             // Then set position - ensure it's at the top
             window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }))?;
-
-            println!(
-                "Window positioned at: x={}, y={} (monitor: {}x{})",
-                x,
-                y,
-                monitor_width,
-                monitor_size.height as f64 / scale_factor
-            );
 
             Ok(())
         })
@@ -255,7 +229,8 @@ pub fn run() {
             update_window_size,
             move_window,
             start_drag,
-            ensure_always_on_top
+            ensure_always_on_top,
+            kill_process
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
